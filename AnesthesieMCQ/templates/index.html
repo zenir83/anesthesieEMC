@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCQ for Anesthesiology</title>
+</head>
+<body>
+    <h1>Today's MCQ</h1>
+
+    <!-- Check if mcq data exists -->
+    {% if mcq %}
+        <h2>{{ mcq.question }}</h2>
+        <ul>
+            <!-- Iterate over options -->
+            {% for option in mcq.options %}
+                <li>{{ option }}</li>
+            {% endfor %}
+        </ul>
+        <p><strong>Correct Answer:</strong> {{ mcq.correct_answer }}</p>
+    {% else %}
+        <!-- Error Message -->
+        <p>No question available. Please try again later.</p>
+    {% endif %}
+
+    <h2>Last 5 Questions</h2>
+    <ul>
+        <!-- Loop over history, excluding today's question -->
+        {% for date, question in history.items() %}
+            <li>
+                <strong>{{ date }}</strong>: {{ question.question }}
+                <ul>
+                    {% for option in question.options %}
+                        <li>{{ option }}</li>
+                    {% endfor %}
+                </ul>
+                <p>Correct Answer: {{ question.correct_answer }}</p>
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
