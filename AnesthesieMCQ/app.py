@@ -3,6 +3,7 @@ from openai import OpenAI
 import random
 import os
 import sqlite3
+import re
 from datetime import datetime
 
 # Set the OpenAI API key
@@ -15,7 +16,7 @@ app = Flask(__name__)
 topics = [
     "Airway Management", "Pharmacology", "Pain Management",
     "Cardiovascular Physiology", "Neuroanesthesia", "Pediatric Anesthesia",
-    "Critical Care", "Obstetric Anesthesia"
+    "Critical Care", "Obstetric Anesthesia", "Neuro Anesthesia", "ATLS", "APLS", "Pharmacology", "Intensive Care Medicine"
 ]
 
 # Initialize the database
@@ -25,7 +26,6 @@ def init_db():
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS questions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                date TEXT UNIQUE NOT NULL,
                 question TEXT NOT NULL,
                 options TEXT NOT NULL,
                 correct_answer TEXT NOT NULL
@@ -34,23 +34,23 @@ def init_db():
         conn.commit()
 
 # Store a new question in the database
-def store_question(date, mcq):
+def store_question(mcq):
     with sqlite3.connect('mcq.db') as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            INSERT OR REPLACE INTO questions (date, question, options, correct_answer)
-            VALUES (?, ?, ?, ?)
-        ''', (date, mcq['question'], '|'.join(mcq['options']), mcq['correct_answer']))
+            INSERT INTO questions (question, options, correct_answer)
+            VALUES (?, ?, ?)
+        ''', (mcq['question'], '|'.join(mcq['options']), mcq['correct_answer']))
         conn.commit()
 
-# Retrieve the last 5 questions from the database
+# Retrieve the last 5 questions from the database HIER ZIT WAARSCHIJNLIJK EEN PROBLEEM!
 def get_last_five_questions():
     with sqlite3.connect('mcq.db') as conn:
         cursor = conn.cursor()
         cursor.execute('''
             SELECT date, question, options, correct_answer
             FROM questions
-            ORDER BY date DESC
+            ORDER BY id DESC
             LIMIT 5
         ''')
         rows = cursor.fetchall()
@@ -64,12 +64,14 @@ def get_last_five_questions():
             }
         return history
 
+    
+
 def generate_mcq():
     # Select a random topic
     topic = random.choice(topics)
 
     # Generate the question using the OpenAI API
-    prompt = f"Generate a multiple-choice question on {topic} for anesthesiologists with 4 options and provide the correct answer."
+    prompt = f"Generate a challegening multiple-choice question on {topic} for anesthesiologists and residents with 4 options and provide the correct answer."
     try:
         # Using the latest OpenAI API format
         completion = client.chat.completions.create(
@@ -79,30 +81,45 @@ def generate_mcq():
         )
 
         # Extract the message content from the response
-        result = completion.choices[0].message['content'].strip()
+        result = completion.choices[0].message.content.strip()
         print(f"Raw API response: {result}")  # Debug: Print the raw response
 
-        # Attempt to parse the response
+        # Split the response into lines
         lines = result.split("\n")
-        question = lines[0].strip() if lines else "Question not found"
-
-        # Filter out options, ensuring only valid lines are considered
-        options = [line.strip() for line in lines[1:] if line.strip() and ':' in line]
         
-        # Validate options count
+        # Initialize question, options, and correct_answer
+        question = ""
+        options = []
+        correct_answer = ""
+
+        # Extract the question (assuming it's the first line)
+        if lines:
+            question = lines[0].strip()
+
+        # Extract options from lines
+        for line in lines[1:]:
+            line = line.strip()
+            # Match lines with options, e.g., "A) Option 1" or "1. Option 1"
+            if re.match(r"^[A-D]\)", line) or re.match(r"^\d+\.", line):
+                options.append(line)
+            elif line.lower().startswith("correct answer:"):
+                correct_answer = line.split(":", 1)[-1].strip()
+
+        # Debug: Print extracted options and correct answer
+        print(f"Extracted Options: {options}")
+        print(f"Extracted Correct Answer: {correct_answer}")
+
+        # Ensure the correct answer is not mistakenly included in options
+        if correct_answer and correct_answer not in options:
+            options.append(correct_answer)
+
+        # Validate the correct number of options
         if len(options) < 4:
             raise ValueError(f"Not enough options generated: {options}")
 
-        # Separate correct answer assumption
-        correct_answer = options[-1]  # Assuming the last option is correct
-
-        # Further checks to ensure options parsing is accurate
-        if not question or len(options) < 4:
-            raise ValueError("Generated content does not meet MCQ format expectations")
-
         return {
             "question": question,
-            "options": options[:-1],  # All except last assumed to be incorrect
+            "options": options,
             "correct_answer": correct_answer
         }
 
@@ -112,8 +129,11 @@ def generate_mcq():
         return {
             "question": "Error generating question",
             "options": ["Option A", "Option B", "Option C", "Option D"],
-            "correct_answer": "Option A"
+            "correct_answer": "Option A",
+            "error_message": str(e)  # Include the error message in the response for debugging
         }
+
+
 
 
 
@@ -122,18 +142,20 @@ def index():
     init_db()
     today = datetime.now().strftime('%Y-%m-%d')
     history = get_last_five_questions()
-    
-    print(f"Today's date: {today}")  # Debugging date
-    print(f"History data: {history}")  # Debugging history data
 
-    if today not in history:
+    # Initialize mcq with a default empty dictionary
+    mcq = history.get(today, {})
+
+    # Generate a new question if today's question is not in history
+    if not mcq:
         mcq = generate_mcq()
         store_question(today, mcq)
         history = get_last_five_questions()
-        print(f"Generated MCQ: {mcq}")  # Debugging generated MCQ
-    
-    return render_template('index.html', mcq=history.get(today, {}), history=history)
 
+    # Debugging: Check the mcq object to ensure it has data
+    print(f"MCQ Data: ", mcq)  # This will print only if mcq is defined correctly
+
+    return render_template('index.html', mcq=generate_mcq(), history=history)
 
 
 @app.route('/api/mcq')

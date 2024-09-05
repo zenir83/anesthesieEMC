@@ -4,40 +4,135 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MCQ for Anesthesiology</title>
+    <title>MCQ Generator for Anesthesiology</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .container {
+            background: white;
+            padding: 20px 30px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        h1 {
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #007bff;
+        }
+
+        .question {
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .options {
+            list-style: none;
+            padding: 0;
+        }
+
+        .answer {
+            display: none;  /* Default to hidden */
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        .option {
+            padding: 10px;
+            margin-bottom: 10px;
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .option:hover {
+            background: #e6f7ff;
+        }
+
+        .correct-answer {
+            font-weight: bold;
+            color: green;
+        }
+
+        .history {
+            margin-top: 20px;
+        }
+
+        .history-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            background: #f2f2f2;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+    </style>
 </head>
 <body>
-    <h1>Today's MCQ</h1>
-
-    <!-- Check if mcq data exists -->
-    {% if mcq %}
-        <h2>{{ mcq.question }}</h2>
-        <ul>
-            <!-- Iterate over options -->
-            {% for option in mcq.options %}
-                <li>{{ option }}</li>
-            {% endfor %}
-        </ul>
-        <p><strong>Correct Answer:</strong> {{ mcq.correct_answer }}</p>
-    {% else %}
-        <!-- Error Message -->
-        <p>No question available. Please try again later.</p>
-    {% endif %}
-
-    <h2>Last 5 Questions</h2>
-    <ul>
-        <!-- Loop over history, excluding today's question -->
-        {% for date, question in history.items() %}
-            <li>
-                <strong>{{ date }}</strong>: {{ question.question }}
-                <ul>
-                    {% for option in question.options %}
-                        <li>{{ option }}</li>
+    <div class="container">
+        <h1>Today's Anesthesiology MCQ</h1>
+        {% if mcq.question %}
+            <div class="question">{{ mcq.question }}</div>
+            <ul class="options">
+                <!-- Check if options exist and display each one -->
+                {% if mcq.options %}
+                    {% for option in mcq.options %}
+                        <li class="option">{{ option }}</li>
                     {% endfor %}
-                </ul>
-                <p>Correct Answer: {{ question.correct_answer }}</p>
-            </li>
-        {% endfor %}
-    </ul>
+                {% else %}
+                    <li class="option">No options available.</li>
+                {% endif %}
+            </ul>
+            <div class="correct-answer">
+                <button onclick="toggleAnswer()">Show Answer</button>
+                <p class="answer" id="answer"><strong>Correct Answer:</strong>{{ mcq.correct_answer }}</p>
+                
+            </div>
+        {% else %}
+            <p>No MCQ generated for today.</p>
+        {% endif %}
+
+        <div class="history">
+            <h2>Recent MCQs</h2>
+            {% for date, item in history.items() %}
+                <div class="history-item">
+                    <strong>{{ date }}:</strong> {{ item.question }} <br>
+                    <em>Options:</em> {{ item.options | join(', ') }} <br>
+                    <em>Correct Answer: {{ item.correct_answer }}</em></p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    <script>
+        function toggleAnswer() {
+            var answerElement = document.getElementById('answer');
+            var buttonElement = document.querySelector('.correct-answer button');
+            if (answerElement.style.display === 'none') {
+                answerElement.style.display = 'block';
+                buttonElement.textContent = 'Hide Answer';  // Change button text to 'Hide Answer'
+            } else {
+                answerElement.style.display = 'none';
+                buttonElement.textContent = 'Show Answer';  // Change button text to 'Show Answer'
+            }
+        }
+    </script>
+
 </body>
 </html>
